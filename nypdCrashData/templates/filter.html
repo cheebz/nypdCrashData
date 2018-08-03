@@ -1,0 +1,178 @@
+<!-- filter.html -->
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8' />
+    <title>NYPD Crashes by Cause</title>
+    <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+    <script type="text/javascript" src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+	<script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.44.1/mapbox-gl.js'></script>
+    <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.44.1/mapbox-gl.css' rel='stylesheet' />
+    <style>
+        body { margin:0; padding:0; }
+        #map { position:absolute; top:0; bottom:0; width:100%; }
+    </style>
+</head>
+<body>
+
+<style>
+	#nav {
+		z-index: 1;
+	}	
+
+    .filter-group {
+        font: 12px/20px 'Helvetica Neue', Arial, Helvetica, sans-serif;
+        font-weight: 600;
+        position: absolute;
+        top: 0px;
+        right: 0px;
+        z-index: 1;
+        border-radius: 3px;
+        width: 0;
+        color: #fff;
+		height: 100%;
+		overflow-y: scroll;
+    }
+
+    .filter-group input[type=checkbox]:first-child + label {
+        border-radius: 3px 3px 0 0;
+    }
+
+    .filter-group label:last-child {
+        border-radius: 0 0 3px 3px;
+        border: none;
+    }
+
+    .filter-group input[type=checkbox] {
+        display: none;
+    }
+
+    .filter-group input[type=checkbox] + label {
+        background-color: #3386c0;
+        display: block;
+        cursor: pointer;
+        padding: 10px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.25);
+    }
+
+    .filter-group input[type=checkbox] + label {
+        background-color: #3386c0;
+        text-transform: capitalize;
+    }
+
+    .filter-group input[type=checkbox] + label:hover,
+    .filter-group input[type=checkbox]:checked + label {
+        background-color: #4ea0da;
+    }
+
+    .filter-group input[type=checkbox]:checked + label:before {
+        content: '✔';
+        margin-right: 5px;
+    }
+	
+	#layer-button {
+		position: absolute;
+		z-index: 1;
+		top: 20px;
+        right: 20px;
+		color: white;
+		font: 24px/40px 'Helvetica Neue', Arial, Helvetica, sans-serif;
+        font-weight: 600;
+		background: #3386c0;
+		border: 2px solid white;
+		border-radius: 5px;
+		padding: 5px;
+	}
+	
+	#layer-button:hover {
+		cursor: pointer;
+		color: #3386c0;
+		background: white;
+	}
+
+</style>
+<div id='map'></div>
+<span id="layer-button" onclick="toggleNav()">Layers</span>
+<div id='nav'>
+	<nav id='filter-group' class='filter-group'></nav>
+</div>
+
+<script>
+mapboxgl.accessToken = '{{ ACCESS_KEY }}';
+var places = {{ crash_data_points|safe }}
+
+var filterGroup = document.getElementById('filter-group');
+var map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/mapbox/dark-v9',
+	center: [-73.963761, 40.688357],
+	zoom: 9.5
+});
+
+map.on('load', function() {
+    // Add a GeoJSON source containing place coordinates and information.
+    map.addSource("places", {
+        "type": "geojson",
+        "data": places
+    });
+
+    places.features.forEach(function(feature) {
+        var symbol = feature.properties['description'];
+        var layerID = 'poi-' + symbol;
+
+        // Add a layer for this symbol type if it hasn't been added already.
+        if (!map.getLayer(layerID)) {
+            map.addLayer({
+                "id": layerID,
+                "type": "circle",
+                "source": "places",
+				"paint": {
+					"circle-color": "#11b4da",
+					"circle-stroke-width": 1,
+					"circle-stroke-color": "#fff"},
+                "filter": ["==", "description", symbol]
+            });
+			
+			map.setLayoutProperty(layerID, 'visibility', 'none')
+
+            // Add checkbox and label elements for the layer.
+            var input = document.createElement('input');
+            input.type = 'checkbox';
+            input.id = layerID;
+            input.checked = false;
+            filterGroup.appendChild(input);
+
+            var label = document.createElement('label');
+            label.setAttribute('for', layerID);
+            label.textContent = symbol;
+            filterGroup.appendChild(label);
+
+            // When the checkbox changes, update the visibility of the layer.
+            input.addEventListener('change', function(e) {
+                map.setLayoutProperty(layerID, 'visibility',
+                    e.target.checked ? 'visible' : 'none');
+            });
+        }
+    });
+});
+
+var isNavClosed = true;
+
+function toggleNav() {
+	if (isNavClosed) {
+		document.getElementById("filter-group").style.width = "240px";
+		document.getElementById("layer-button").style.right = "260px";
+		isNavClosed = false;
+	} else {
+		document.getElementById("filter-group").style.width = "0px";
+		document.getElementById("layer-button").style.right = "20px";
+		isNavClosed = true;
+	}
+	
+}
+
+</script>
+
+</body>
+</html>
